@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Transport Management System by HASSAN Abdullahi</title>
+<style>
+  :root{--accent:#106fa4;--muted:#666}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:#f6f8fb;color:#111}
+  header{background:linear-gradient(90deg,var(--accent),#0b7bb3);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between}
+  header h1{font-size:18px;margin:0}
+  main{padding:18px;max-width:1100px;margin:18px auto}
+  .grid{display:grid;grid-template-columns:1fr 420px;gap:18px}
+  .card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(12,24,46,0.06)}
+  .muted{color:var(--muted);font-size:13px}
+  button{background:var(--accent);color:#fff;border:0;padding:8px 10px;border-radius:8px;cursor:pointer}
+  button.ghost{background:transparent;color:var(--accent);border:1px solid rgba(16,111,164,0.12)}
+  label{display:block;margin-top:8px;font-size:13px}
+  input,select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e3e8ef;margin-top:6px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  table th,table td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+  .small{font-size:12px;padding:6px 8px;border-radius:6px}
+  .row{display:flex;gap:8px;align-items:center}
+  .kpi{display:flex;gap:8px;flex-wrap:wrap}
+  .kpi .tile{background:#fafcff;padding:12px;border-radius:8px;min-width:140px}
+  .nav{display:flex;gap:8px;flex-wrap:wrap}
+  .hidden{display:none}
+  footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+  .success{color:green}
+  .danger{color:#c0392b}
+  .notice{background:#fff9e6;padding:8px;border-radius:8px;color:#7a5a00;margin-bottom:8px}
+  .flex-between{display:flex;justify-content:space-between;align-items:center}
+  .pill{display:inline-block;background:#eef8ff;color:var(--accent);padding:6px 8px;border-radius:999px;font-weight:600}
+  .small-link{background:none;border:none;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0}
+  .export-btn{background:#0a8a58}
+  .textarea-small{height:64px}
+  .center{display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;gap:14px;align-items:center">
+    <h1>Transport Management System by HASSAN Abdullahi</h1>
+    <div class="muted">Static-host friendly (LocalStorage)</div>
+  </div>
+  <div class="nav">
+    <select id="roleSelect">
+      <option value="guest">Guest (no role)</option>
+      <option value="passenger">Passenger</option>
+      <option value="driver">Driver</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button id="loadSampleBtn" title="Load sample data">Load Sample Data</button>
+    <button id="exportBtn" class="export-btn">Export JSON</button>
+    <button id="importBtn" class="ghost">Import JSON</button>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+    <div>
+      <!-- Main content area changes by role -->
+      <div id="guestView" class="card">
+        <h3>Welcome</h3>
+        <p class="muted">Choose a role on the top-right to simulate Passenger, Driver, or Admin workflows. Data persists in your browser storage. For a real app you'd replace LocalStorage with a database and real authentication.</p>
+        <p class="notice"><strong>Demo rules enforced:</strong> one ticket per passenger per trip; cannot exceed bus capacity.</p>
+        <div class="kpi" id="kpis"></div>
+      </div>
+
+      <!-- Passenger -->
+      <div id="passengerView" class="card hidden">
+        <div class="flex-between">
+          <h3>Passenger Portal</h3>
+          <div><button id="passCreateBtn" class="ghost">Create Passenger Account</button></div>
+        </div>
+        <div id="passengerFormWrap" class="hidden card" style="margin-top:8px">
+          <h4>Create Passenger</h4>
+          <label>Name<input id="pname" /></label>
+          <label>Email<input id="pemail" /></label>
+          <label>Phone<input id="pphone" /></label>
+          <div style="margin-top:8px"><button id="createPassenger">Create</button> <button id="cancelCreatePassenger" class="ghost">Cancel</button></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <label>Logged in passenger:
+            <select id="passengerLogin"></select>
+          </label>
+        </div>
+
+        <h4 style="margin-top:12px">Search upcoming trips</h4>
+        <label>Origin<input id="filterOrigin" placeholder="leave blank for all" /></label>
+        <label>Destination<input id="filterDestination" placeholder="leave blank for all" /></label>
+        <div style="margin-top:8px" class="row">
+          <button id="searchTrips">Search</button>
+          <button id="clearFilter" class="ghost">Clear</button>
+        </div>
+
+        <div id="tripResults" style="margin-top:12px"></div>
+      </div>
+
+      <!-- Driver -->
+      <div id="driverView" class="card hidden">
+        <div class="flex-between">
+          <h3>Driver Dashboard</h3>
+          <div><label>Driver<select id="driverLogin"></select></label></div>
+        </div>
+        <div id="driverTrips" style="margin-top:12px"></div>
+      </div>
+
+      <!-- Admin -->
+      <div id="adminView" class="card hidden">
+        <div class="flex-between">
+          <h3>Admin / Fleet Manager</h3>
+          <div><button id="clearData" class="ghost">Clear All Data</button></div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:12px">
+          <div style="flex:1">
+            <h4>Create Bus</h4>
+            <label>Registration<input id="busReg"/></label>
+            <label>Capacity<input id="busCap" type="number" value="20"/></label>
+            <label>Model<input id="busModel"/></label>
+            <div style="margin-top:8px"><button id="createBus">Add Bus</button></div>
+
+            <h4 style="margin-top:12px">Create Driver</h4>
+            <label>Name<input id="drvName"/></label>
+            <label>Phone<input id="drvPhone"/></label>
+            <div style="margin-top:8px"><button id="createDriver">Add Driver</button></div>
+          </div>
+
+          <div style="flex:1">
+            <h4>Create Route</h4>
+            <label>Origin<input id="routeOrigin"/></label>
+            <label>Destination<input id="routeDest"/></label>
+            <label>Stops<textarea id="routeStops" class="textarea-small"></textarea></label>
+            <div style="margin-top:8px"><button id="createRoute">Add Route</button></div>
+
+            <h4 style="margin-top:12px">Create Trip (Schedule)</h4>
+            <label>Route<select id="tripRoute"></select></label>
+            <label>Bus<select id="tripBus"></select></label>
+            <label>Driver<select id="tripDriver"></select></label>
+            <label>Departure (ISO)<input id="tripDepart" placeholder="2025-09-15T08:00"/></label>
+            <label>Arrival (ISO)<input id="tripArrive" placeholder="2025-09-15T10:00"/></label>
+            <label>Capacity (optional, will copy from bus if empty)<input id="tripCap" type="number" /></label>
+            <div style="margin-top:8px"><button id="createTrip">Create Trip</button></div>
+          </div>
+        </div>
+
+        <h4 style="margin-top:12px">Admin Tables</h4>
+        <div style="display:flex;gap:12px">
+          <div style="flex:1" class="card">
+            <strong>Buses</strong>
+            <div id="adminBuses"></div>
+          </div>
+          <div style="flex:1" class="card">
+            <strong>Drivers</strong>
+            <div id="adminDrivers"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:12px">
+          <div style="flex:1" class="card">
+            <strong>Routes</strong>
+            <div id="adminRoutes"></div>
+          </div>
+          <div style="flex:1" class="card">
+            <strong>Trips</strong>
+            <div id="adminTrips"></div>
+          </div>
+        </div>
+
+        <h4 style="margin-top:12px">Bookings</h4>
+        <div id="adminBookings"></div>
+
+        <h4 style="margin-top:12px">Reports</h4>
+        <div id="adminReports"></div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="card">
+        <h4>Instructions</h4>
+        <ol class="muted">
+          <li>Load sample data to get started quickly.</li>
+          <li>Switch roles using the top-right selector.</li>
+          <li>Passenger: create/select a passenger, search trips, book and simulate payment.</li>
+          <li>Admin: create buses, drivers, routes, trips and view bookings.</li>
+          <li>Driver: select driver and manage assigned trips.</li>
+          <li>Export JSON to submit your data or import to restore earlier state.</li>
+        </ol>
+        <hr/>
+        <div id="exportArea" class="muted" style="font-size:13px"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>Quick actions</h4>
+        <div class="row" style="margin-top:8px">
+          <button id="sampleBook">Quick: Book first available trip (as logged passenger)</button>
+        </div>
+        <div style="margin-top:10px" class="muted">Use this during demo to show flow quickly.</div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>Notes for Instructor</h4>
+        <p class="muted">This is a static-hosted demo that implements rules client-side and persists data locally. Replace LocalStorage with a server & DB for production.</p>
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    <div class="muted">Save this file as <strong>index.html</strong>. Host on GitHub Pages or Netlify for a live demo link to submit.</div>
+  </footer>
+</main>
+
+<input id="fileInput" type="file" accept="application/json" class="hidden"/>
+
+<script>
+/*
+  Simple in-browser data model stored in LocalStorage.
+  Tables: buses, drivers, routes, trips, passengers, bookings, payments
+  - bookings enforce unique passenger per trip and seat availability
+*/
+
+const STORAGE_KEY = 'tms_demo_v1';
+
+// Utilities
+function uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+function nowIso(){ return new Date().toISOString(); }
+function saveDB(db){ localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); renderAll(); }
+function loadDB(){ const j = localStorage.getItem(STORAGE_KEY); if(!j) return null; try{return JSON.parse(j);}catch(e){return null;} }
+function emptyDB(){
+  return {
+    buses:[], drivers:[], routes:[], trips:[], passengers:[], bookings:[], payments:[]
+  };
+}
+function getDB(){ let db = loadDB(); if(!db){ db = emptyDB(); saveDB(db); } return db; }
+function resetAndSave(db){ saveDB(db); }
+
+// initial data
+function sampleData(){
+  const db = emptyDB();
+  // buses
+  db.buses.push({id:uid('bus'), reg:'LAG-TR-001', capacity:40, model:'Volvo B9', status:'Available'});
+  db.buses.push({id:uid('bus'), reg:'LAG-TR-002', capacity:28, model:'Toyota Coaster', status:'Available'});
+  // drivers
+  db.drivers.push({id:uid('drv'), name:'Ahmed Musa', phone:'08012345678', license:'D-1234', status:'Active'});
+  db.drivers.push({id:uid('drv'), name:'Fatima Bello', phone:'08098761234', license:'F-9876', status:'Active'});
+  // routes
+  db.routes.push({id:uid('route'), origin:'Agbado Oja', destination:'Yaba', stops:'Ojodu;Ikeja;Yaba', distance_km:24});
+  db.routes.push({id:uid('route'), origin:'Agbado Oja', destination:'Yaba (Express)', stops:'Direct', distance_km:20});
+  // trips (two upcoming)
+  db.trips.push({
+    id:uid('trip'),
+    routeId:db.routes[0].id,
+    busId:db.buses[0].id,
+    driverId:db.drivers[0].id,
+    depart:'2025-09-12T08:00:00',
+    arrive:'2025-09-12T09:10:00',
+    capacity: db.buses[0].capacity,
+    status:'Scheduled'
+  });
+  db.trips.push({
+    id:uid('trip'),
+    routeId:db.routes[1].id,
+    busId:db.buses[1].id,
+    driverId:db.drivers[1].id,
+    depart:'2025-09-13T12:00:00',
+    arrive:'2025-09-13T13:00:00',
+    capacity: db.buses[1].capacity,
+    status:'Scheduled'
+  });
+  // passengers
+  db.passengers.push({id:uid('psg'), name:'Hassan Abdullahi', email:'hassan@example.com', phone:'08055551234'});
+  db.passengers.push({id:uid('psg'), name:'Aisha Bala', email:'aisha@example.com', phone:'08055559876'});
+  // one booking already
+  db.bookings.push({id:uid('bk'), tripId:db.trips[0].id, passengerId:db.passengers[0].id, seatNumber:'1A', status:'Booked', paymentStatus:'Paid', createdAt:nowIso()});
+  // payment
+  db.payments.push({id:uid('pay'), bookingId:db.bookings[0].id, amount:2000, method:'Simulated', status:'Paid', createdAt:nowIso()});
+  saveDB(db);
+  return db;
+}
+
+// Business logic helpers
+function findById(arr,id){ return arr.find(x=>x.id===id); }
+function countBookingsForTrip(db, tripId){ return db.bookings.filter(b=>b.tripId===tripId && b.status==='Booked').length; }
+function seatsAvailable(db, trip){
+  const cap = trip.capacity || ( findById(db.buses, trip.busId) ? findById(db.buses, trip.busId).capacity : 0 );
+  const booked = countBookingsForTrip(db, trip.id);
+  return (cap - booked);
+}
+function passengerAlreadyBooked(db, tripId, passengerId){
+  return db.bookings.some(b => b.tripId===tripId && b.passengerId===passengerId && b.status==='Booked');
+}
+
+// CRUD operations
+function createBus(reg, cap, model){
+  const db = getDB();
+  db.buses.push({id:uid('bus'), reg, capacity: Number(cap||0), model, status:'Available'});
+  saveDB(db);
+}
+function createDriver(name, phone){
+  const db = getDB();
+  db.drivers.push({id:uid('drv'), name, phone, license:'N/A', status:'Active'});
+  saveDB(db);
+}
+function createRoute(origin,dest,stops){
+  const db = getDB();
+  db.routes.push({id:uid('route'), origin, destination:dest, stops, distance_km:0});
+  saveDB(db);
+}
+function createTrip(routeId, busId, driverId, depart, arrive, capacity){
+  const db = getDB();
+  const bus = findById(db.buses, busId);
+  const cap = capacity ? Number(capacity) : (bus ? bus.capacity : 0);
+  db.trips.push({id:uid('trip'), routeId, busId, driverId, depart, arrive, capacity:cap, status:'Scheduled'});
+  saveDB(db);
+}
+function createPassenger(name,email,phone){
+  const db = getDB();
+  const p = {id:uid('psg'), name, email, phone};
+  db.passengers.push(p);
+  saveDB(db);
+  return p;
+}
+function createBooking(tripId, passengerId, seat=null, simulatePaymentAmount=0){
+  const db = getDB();
+  const trip = findById(db.trips, tripId);
+  if(!trip) return {error:'Trip not found'};
+  if(passengerAlreadyBooked(db, tripId, passengerId)) return {error:'Passenger already has a ticket for this trip'};
+  if(seatsAvailable(db, trip) <= 0) return {error:'No seats available'};
+  const bk = {id:uid('bk'), tripId, passengerId, seatNumber:seat||'', status:'Booked', paymentStatus: simulatePaymentAmount>0 ? 'Paid':'Pending', createdAt:nowIso()};
+  db.bookings.push(bk);
+  if(simulatePaymentAmount>0){
+    db.payments.push({id:uid('pay'), bookingId:bk.id, amount:simulatePaymentAmount, method:'Simulated', status:'Paid', createdAt:nowIso()});
+  }
+  saveDB(db);
+  return {ok:bk};
+}
+function cancelBooking(bookingId){
+  const db = getDB(); const bk = findById(db.bookings, bookingId);
+  if(!bk) return false; bk.status='Cancelled'; saveDB(db); return true;
+}
+function driverMarkComplete(tripId){
+  const db = getDB(); const trip = findById(db.trips, tripId);
+  if(!trip) return false; trip.status='Complete'; saveDB(db); return true;
+}
+
+// UI rendering
+function el(id){ return document.getElementById(id); }
+
+function renderKpis(){
+  const db = getDB();
+  const elK = el('kpis'); elK.innerHTML = '';
+  const totalTrips = db.trips.length;
+  const totalBookings = db.bookings.filter(b=>b.status==='Booked').length;
+  const totalPassengers = db.passengers.length;
+  const revenue = db.payments.reduce((s,p)=>s+(p.amount||0),0);
+  const arr = [
+    {t:'Trips',v:totalTrips},
+    {t:'Bookings',v:totalBookings},
+    {t:'Passengers',v:totalPassengers},
+    {t:'Revenue (NGN)',v:revenue}
+  ];
+  arr.forEach(a=>{
+    const d = document.createElement('div'); d.className='tile';
+    d.innerHTML = `<div class="muted">${a.t}</div><div style="font-size:18px;font-weight:700">${a.v}</div>`;
+    elK.appendChild(d);
+  });
+}
+
+function fillSelectWithOptions(sel, items, formatFn){
+  sel.innerHTML = '';
+  const opt = document.createElement('option'); opt.value=''; opt.textContent='-- select --'; sel.appendChild(opt);
+  items.forEach(it=>{
+    const o = document.createElement('option'); o.value=it.id; o.textContent = formatFn ? formatFn(it) : it.name || it.reg || it.id;
+    sel.appendChild(o);
+  });
+}
+
+function renderPassengerLogin(){
+  const sel = el('passengerLogin');
+  const db = getDB();
+  fillSelectWithOptions(sel, db.passengers, p => `${p.name} — ${p.email||p.phone}`);
+}
+
+function renderDriverLogin(){ fillSelectWithOptions(el('driverLogin'), getDB().drivers, d=>d.name); }
+
+function renderAdminDropdowns(){
+  const db = getDB();
+  fillSelectWithOptions(el('tripRoute'), db.routes, r=>`${r.origin} → ${r.destination}`);
+  fillSelectWithOptions(el('tripBus'), db.buses, b=>`${b.reg} (${b.capacity})`);
+  fillSelectWithOptions(el('tripDriver'), db.drivers, d=>d.name);
+}
+
+function renderTripResults(filterOrigin='', filterDest=''){
+  const db = getDB();
+  const list = db.trips.filter(t=>{
+    if(!t.depart) return false;
+    const when = new Date(t.depart);
+    // upcoming only
+    if(when < new Date()) return false;
+    const route = findById(db.routes, t.routeId) || {};
+    if(filterOrigin && !route.origin.toLowerCase().includes(filterOrigin.toLowerCase())) return false;
+    if(filterDest && !route.destination.toLowerCase().includes(filterDest.toLowerCase())) return false;
+    return true;
+  });
+  const wrap = el('tripResults'); wrap.innerHTML = '';
+  if(list.length===0){ wrap.innerHTML = '<div class="muted">No upcoming trips found.</div>'; return; }
+  const table = document.createElement('table');
+  table.innerHTML = '<thead><tr><th>Route</th><th>When</th><th>Bus</th><th>Seats</th><th>Action</th></tr></thead>';
+  const tbody = document.createElement('tbody');
+  list.forEach(trip=>{
+    const route = findById(db.routes, trip.routeId) || {};
+    const bus = findById(db.buses, trip.busId) || {};
+    const booked = countBookingsForTrip(db, trip.id);
+    const seats = trip.capacity || bus.capacity || 0;
+    const avail = seats - booked;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${route.origin||''} → ${route.destination||''}</td>
+      <td>${trip.depart ? new Date(trip.depart).toLocaleString() : ''}<div class="muted" style="font-size:12px">${trip.status||''}</div></td>
+      <td>${bus.reg||''} <div class="muted">${bus.model||''}</div></td>
+      <td>${avail} / ${seats}</td>
+      <td></td>`;
+    const btn = document.createElement('button'); btn.textContent='Book'; btn.onclick = ()=>{
+      const selp = el('passengerLogin').value;
+      if(!selp){ alert('Please choose/select a passenger account first.'); return; }
+      // prompt for seat and simulate payment
+      const seat = prompt('Seat number (optional):');
+      const pay = confirm('Simulate immediate payment? Press OK to mark payment as Paid.');
+      const res = createBooking(trip.id, selp, seat, pay ? 1500:0);
+      if(res.error) alert('Booking failed: ' + res.error);
+      else alert('Booking created. ID: ' + res.ok.id);
+      renderAll();
+    };
+    tr.querySelector('td:last-child').appendChild(btn);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+function renderDriverTripsFor(driverId){
+  const db = getDB();
+  const trips = db.trips.filter(t=>t.driverId===driverId);
+  const wrap = el('driverTrips'); wrap.innerHTML = '';
+  if(trips.length===0){ wrap.innerHTML='<div class="muted">No trips assigned</div>'; return; }
+  const table = document.createElement('table');
+  table.innerHTML = '<thead><tr><th>Route</th><th>Depart</th><th>Seats</th><th>Actions</th></tr></thead>';
+  const tbody = document.createElement('tbody');
+  trips.forEach(trip=>{
+    const route = findById(db.routes, trip.routeId) || {};
+    const bus = findById(db.buses, trip.busId) || {};
+    const booked = countBookingsForTrip(db, trip.id);
+    const seats = trip.capacity || bus.capacity || 0;
+    const avail = seats - booked;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${route.origin||''} → ${route.destination||''}</td>
+      <td>${trip.depart?new Date(trip.depart).toLocaleString() : ''}</td>
+      <td>${booked} booked / ${seats}</td>
+      <td></td>`;
+    const viewBtn = document.createElement('button'); viewBtn.className='ghost'; viewBtn.textContent='View Bookings';
+    viewBtn.onclick = ()=>{
+      showTripBookings(trip.id);
+    };
+    const completeBtn = document.createElement('button'); completeBtn.textContent='Mark Complete';
+    completeBtn.onclick = ()=>{
+      if(confirm('Mark trip complete?')){ driverMarkComplete(trip.id); renderAll(); }
+    };
+    tr.querySelector('td:last-child').appendChild(viewBtn);
+    tr.querySelector('td:last-child').appendChild(completeBtn);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+function showTripBookings(tripId){
+  const db = getDB();
+  const trip = findById(db.trips,tripId);
+  const route = findById(db.routes, trip.routeId);
+  const wrap = document.createElement('div'); wrap.className='card';
+  wrap.innerHTML = `<h4>Bookings for ${route.origin} → ${route.destination}</h4>`;
+  const table = document.createElement('table');
+  table.innerHTML = '<thead><tr><th>Passenger</th><th>Seat</th><th>Payment</th><th>Action</th></tr></thead>';
+  const tbody = document.createElement('tbody');
+  db.bookings.filter(b=>b.tripId===tripId).forEach(bk=>{
+    const p = findById(db.passengers, bk.passengerId) || {};
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.name||'N/A'}</td><td>${bk.seatNumber||''}</td><td>${bk.paymentStatus||''}</td><td></td>`;
+    const cbtn = document.createElement('button'); cbtn.className='ghost'; cbtn.textContent='Cancel'; cbtn.onclick=()=>{
+      if(confirm('Cancel booking?')){ cancelBooking(bk.id); renderAll(); modalClose(); }
+    };
+    tr.querySelector('td:last-child').appendChild(cbtn);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  modalShow(wrap);
+}
+
+// Admin tables render
+function renderAdminTables(){
+  const db = getDB();
+  // buses
+  const busWrap = el('adminBuses'); busWrap.innerHTML='';
+  if(db.buses.length===0) busWrap.innerHTML='<div class="muted">No buses</div>';
+  else{
+    const t = document.createElement('table'); t.innerHTML='<thead><tr><th>Reg</th><th>Cap</th><th>Model</th></tr></thead>'; const tb=document.createElement('tbody');
+    db.buses.forEach(b=>{ const r=document.createElement('tr'); r.innerHTML=`<td>${b.reg}</td><td>${b.capacity}</td><td>${b.model}</td>`; tb.appendChild(r); });
+    t.appendChild(tb); busWrap.appendChild(t);
+  }
+  // drivers
+  const drvWrap = el('adminDrivers'); drvWrap.innerHTML='';
+  if(db.drivers.length===0) drvWrap.innerHTML='<div class="muted">No drivers</div>';
+  else{
+    const t=document.createElement('table'); t.innerHTML='<thead><tr><th>Name</th><th>Phone</th></tr></thead>'; const tb=document.createElement('tbody');
+    db.drivers.forEach(d=>{ const r=document.createElement('tr'); r.innerHTML=`<td>${d.name}</td><td>${d.phone}</td>`; tb.appendChild(r); });
+    t.appendChild(tb); drvWrap.appendChild(t);
+  }
+  // routes
+  const rtWrap = el('adminRoutes'); rtWrap.innerHTML='';
+  if(db.routes.length===0) rtWrap.innerHTML='<div class="muted">No routes</div>';
+  else{ const t=document.createElement('table'); t.innerHTML='<thead><tr><th>Origin</th><th>Dest</th></tr></thead>'; const tb=document.createElement('tbody');
+    db.routes.forEach(r=>{ const rr=document.createElement('tr'); rr.innerHTML=`<td>${r.origin}</td><td>${r.destination}</td>`; tb.appendChild(rr); });
+    t.appendChild(tb); rtWrap.appendChild(t);
+  }
+  // trips
+  const trWrap = el('adminTrips'); trWrap.innerHTML='';
+  if(db.trips.length===0) trWrap.innerHTML='<div class="muted">No trips</div>';
+  else{
+    const t=document.createElement('table'); t.innerHTML='<thead><tr><th>Route</th><th>Depart</th><th>Bus</th><th>Driver</th><th>Seats</th></tr></thead>'; const tb=document.createElement('tbody');
+    db.trips.forEach(tr=>{ const route=findById(db.routes,tr.routeId)||{}; const bus=findById(db.buses,tr.busId)||{}; const drv=findById(db.drivers,tr.driverId)||{};
+      const booked = countBookingsForTrip(db,tr.id); const cap = tr.capacity||bus.capacity||0;
+      const r = document.createElement('tr'); r.innerHTML=`<td>${route.origin||''} → ${route.destination||''}</td><td>${tr.depart?new Date(tr.depart).toLocaleString():''}<div class="muted">${tr.status||''}</div></td><td>${bus.reg||''}</td><td>${drv.name||''}</td><td>${booked}/${cap}</td>`;
+      tb.appendChild(r);
+    });
+    t.appendChild(tb); trWrap.appendChild(t);
+  }
+  // bookings
+  const bkWrap = el('adminBookings'); bkWrap.innerHTML='';
+  if(db.bookings.length===0) bkWrap.innerHTML='<div class="muted">No bookings</div>';
+  else{
+    const t=document.createElement('table'); t.innerHTML='<thead><tr><th>Trip</th><th>Passenger</th><th>Seat</th><th>Payment</th></tr></thead>'; const tb=document.createElement('tbody');
+    db.bookings.forEach(bk=>{ const trip=findById(db.trips,bk.tripId)||{}; const route=findById(db.routes,trip.routeId)||{}; const p=findById(db.passengers,bk.passengerId)||{};
+      const r=document.createElement('tr'); r.innerHTML=`<td>${route.origin||''} → ${route.destination||''}</td><td>${p.name||''}</td><td>${bk.seatNumber||''}</td><td>${bk.paymentStatus||''}</td>`; tb.appendChild(r);
+    });
+    t.appendChild(tb); bkWrap.appendChild(t);
+  }
+
+  // reports: bookings per route & revenue
+  const rpt = el('adminReports'); rpt.innerHTML='';
+  const bookingsPerRoute = {};
+  db.bookings.forEach(bk=>{
+    const trip = findById(db.trips, bk.tripId);
+    if(!trip) return;
+    const route = findById(db.routes, trip.routeId);
+    const key = route ? `${route.origin}→${route.destination}` : 'Unknown';
+    bookingsPerRoute[key] = (bookingsPerRoute[key]||0)+ (bk.status==='Booked'?1:0);
+  });
+  const rptDiv=document.createElement('div'); rptDiv.innerHTML = '<h5>Bookings per route</h5>';
+  const ul=document.createElement('ul');
+  for(const k in bookingsPerRoute){ const li=document.createElement('li'); li.textContent=`${k}: ${bookingsPerRoute[k]}`; ul.appendChild(li); }
+  rptDiv.appendChild(ul);
+  const revenue = db.payments.reduce((s,p)=>s+(p.amount||0),0);
+  const revEl = document.createElement('div'); revEl.style.marginTop='8px'; revEl.innerHTML=`<strong>Total revenue:</strong> NGN ${revenue}`;
+  rpt.appendChild(rptDiv); rpt.appendChild(revEl);
+}
+
+// modal helper
+let modalEl = null;
+function modalShow(node){
+  const overlay = document.createElement('div');
+  overlay.style.position='fixed'; overlay.style.left=0; overlay.style.top=0; overlay.style.right=0; overlay.style.bottom=0; overlay.style.background='rgba(0,0,0,0.5)'; overlay.style.display='flex'; overlay.style.justifyContent='center'; overlay.style.alignItems='center';
+  const box = document.createElement('div'); box.style.maxWidth='760px'; box.style.width='90%';
+  box.appendChild(node); overlay.appendChild(box);
+  overlay.onclick = (e)=>{ if(e.target===overlay) modalClose(); };
+  document.body.appendChild(overlay); modalEl = overlay;
+}
+function modalClose(){ if(modalEl){ modalEl.remove(); modalEl=null; } }
+
+// render everything
+function renderAll(){
+  renderKpis(); renderPassengerLogin(); renderDriverLogin(); renderAdminDropdowns();
+  renderAdminTables();
+  // views based on role
+  const role = el('roleSelect').value;
+  ['guestView','passengerView','driverView','adminView'].forEach(id=>el(id).classList.add('hidden'));
+  if(role==='guest') el('guestView').classList.remove('hidden');
+  if(role==='passenger'){ el('passengerView').classList.remove('hidden'); renderTripResults(); }
+  if(role==='driver'){ el('driverView').classList.remove('hidden'); /* driver trips will update when driver selected */ }
+  if(role==='admin'){ el('adminView').classList.remove('hidden'); }
+}
+
+// handlers and event wiring
+document.addEventListener('DOMContentLoaded',()=>{
+  if(!loadDB()){ sampleData(); }
+  renderAll();
+
+  el('loadSampleBtn').onclick = ()=>{ if(confirm('Replace existing data with sample data?')) sampleData(); };
+  el('exportBtn').onclick = ()=>{ const db = getDB(); const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tms_export.json'; a.click(); URL.revokeObjectURL(url); };
+  el('importBtn').onclick = ()=> el('fileInput').click();
+  el('fileInput').onchange = (e)=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload = ()=>{ try{ const obj=JSON.parse(r.result); if(confirm('Replace DB with imported JSON?')){ saveDB(obj); } }catch(ex){ alert('Invalid JSON'); } }; r.readAsText(f); };
+
+  el('roleSelect').onchange = ()=>{ renderAll(); };
+
+  // passenger create account toggle
+  el('passCreateBtn').onclick = ()=>{ el('passengerFormWrap').classList.toggle('hidden'); };
+  el('createPassenger').onclick = ()=>{
+    const name=el('pname').value.trim(), email=el('pemail').value.trim(), phone=el('pphone').value.trim();
+    if(!name) return alert('Enter name');
+    createPassenger(name,email,phone);
+    el('pname').value=''; el('pemail').value=''; el('pphone').value=''; el('passengerFormWrap').classList.add('hidden'); renderAll();
+  };
+  el('cancelCreatePassenger').onclick = ()=>{ el('passengerFormWrap').classList.add('hidden'); };
+
+  // search trips
+  el('searchTrips').onclick = ()=>{ renderTripResults(el('filterOrigin').value, el('filterDestination').value); };
+  el('clearFilter').onclick = ()=>{ el('filterOrigin').value=''; el('filterDestination').value=''; renderTripResults(); };
+
+  // admin create bus/driver/route/trips
+  el('createBus').onclick = ()=>{ const reg=el('busReg').value.trim(), cap=el('busCap').value, model=el('busModel').value.trim(); if(!reg) return alert('Reg required'); createBus(reg,cap,model); el('busReg').value=''; el('busModel').value=''; renderAll(); };
+  el('createDriver').onclick = ()=>{ const name=el('drvName').value.trim(), phone=el('drvPhone').value.trim(); if(!name) return alert('Name'); createDriver(name,phone); el('drvName').value=''; el('drvPhone').value=''; renderAll(); };
+  el('createRoute').onclick = ()=>{ const o=el('routeOrigin').value.trim(), d=el('routeDest').value.trim(), s=el('routeStops').value.trim(); if(!o||!d) return alert('Origin & Destination'); createRoute(o,d,s); el('routeOrigin').value=''; el('routeDest').value=''; el('routeStops').value=''; renderAll(); };
+  el('createTrip').onclick = ()=>{ const r=el('tripRoute').value, b=el('tripBus').value, dr=el('tripDriver').value, dep=el('tripDepart').value, arr=el('tripArrive').value, cap=el('tripCap').value;
+    if(!r||!b||!dr||!dep) return alert('Route, Bus, Driver and Departure required'); createTrip(r,b,dr,dep,arr,cap); el('tripDepart').value=''; el('tripArrive').value=''; renderAll(); };
+
+  // passenger quick book
+  el('sampleBook').onclick = ()=>{
+    const db=getDB();
+    const pid = el('passengerLogin').value;
+    if(!pid) return alert('Select passenger');
+    const trip = db.trips.find(t => new Date(t.depart) > new Date());
+    if(!trip) return alert('No upcoming trip');
+    const res = createBooking(trip.id, pid, '', 1500);
+    if(res.error) alert('Failed: ' + res.error);
+    else alert('Booked. ID: ' + res.ok.id);
+    renderAll();
+  };
+
+  // driver login change
+  el('driverLogin').onchange = ()=>{ const id = el('driverLogin').value; if(id) renderDriverTripsFor(id); else el('driverTrips').innerHTML=''; };
+
+  // clear data with confirmation
+  el('clearData').onclick = ()=>{ if(confirm('Clear ALL data? This cannot be undone.')){ saveDB(emptyDB()); } };
+
+  // export area update
+  setInterval(()=>{ el('exportArea').textContent = 'LocalStorage key: ' + STORAGE_KEY + ' — you can Export JSON to download the DB.'; }, 2000);
+});
+
+// convenience: saveDB wrapper updates and renders
+function saveDB(db){ localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); renderAll(); }
+
+// provide sampleData as public function
+function sampleData(){
+  const db = sampleDataGenerator();
+  saveDB(db);
+}
+// since sampleData was declared earlier in code block, but inside function scope, re-define generator for safety
+function sampleDataGenerator(){
+  const db = emptyDB();
+  db.buses.push({id:uid('bus'), reg:'LAG-TR-001', capacity:40, model:'Volvo B9', status:'Available'});
+  db.buses.push({id:uid('bus'), reg:'LAG-TR-002', capacity:28, model:'Toyota Coaster', status:'Available'});
+  db.drivers.push({id:uid('drv'), name:'Ahmed Musa', phone:'08012345678', license:'D-1234', status:'Active'});
+  db.drivers.push({id:uid('drv'), name:'Fatima Bello', phone:'08098761234', license:'F-9876', status:'Active'});
+  db.routes.push({id:uid('route'), origin:'Agbado Oja', destination:'Yaba', stops:'Ojodu;Ikeja;Yaba', distance_km:24});
+  db.routes.push({id:uid('route'), origin:'Agbado Oja', destination:'Yaba (Express)', stops:'Direct', distance_km:20});
+  db.trips.push({
+    id:uid('trip'),
+    routeId:db.routes[0].id,
+    busId:db.buses[0].id,
+    driverId:db.drivers[0].id,
+    depart:'2025-09-12T08:00:00',
+    arrive:'2025-09-12T09:10:00',
+    capacity: db.buses[0].capacity,
+    status:'Scheduled'
+  });
+  db.trips.push({
+    id:uid('trip'),
+    routeId:db.routes[1].id,
+    busId:db.buses[1].id,
+    driverId:db.drivers[1].id,
+    depart:'2025-09-13T12:00:00',
+    arrive:'2025-09-13T13:00:00',
+    capacity: db.buses[1].capacity,
+    status:'Scheduled'
+  });
+  db.passengers.push({id:uid('psg'), name:'Hassan Abdullahi', email:'hassan@example.com', phone:'08055551234'});
+  db.passengers.push({id:uid('psg'), name:'Aisha Bala', email:'aisha@example.com', phone:'08055559876'});
+  db.bookings.push({id:uid('bk'), tripId:db.trips[0].id, passengerId:db.passengers[0].id, seatNumber:'1A', status:'Booked', paymentStatus:'Paid', createdAt:nowIso()});
+  db.payments.push({id:uid('pay'), bookingId:db.bookings[0].id, amount:2000, method:'Simulated', status:'Paid', createdAt:nowIso()});
+  return db;
+}
+
+// initialize if empty
+(function initOnce(){
+  if(!loadDB()){ const db = sampleDataGenerator(); saveDB(db); }
+})();
+</script>
+</body>
+</html>

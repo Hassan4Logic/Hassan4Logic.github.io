@@ -45,10 +45,10 @@
   </div>
   <div class="nav">
     <select id="roleSelect">
-      <option value="guest">Guest (no role)</option>
+      <option value="guest">Select role as a passenger</option>
       <option value="passenger">Passenger</option>
       <option value="driver">Driver</option>
-      <option value="admin">Admin</option>
+      <option value="admin">Fleet Manager</option>
     </select>
     <button id="loadSampleBtn" title="Load sample data">Load Sample Data</button>
     <button id="exportBtn" class="export-btn">Export JSON</button>
@@ -62,8 +62,8 @@
       <!-- Main content area changes by role -->
       <div id="guestView" class="card">
         <h3>Welcome</h3>
-        <p class="muted">Choose a role on the top-right to simulate Passenger, Driver, or Admin workflows. Data persists in your browser storage. For a real app you'd replace LocalStorage with a database and real authentication.</p>
-        <p class="notice"><strong>Demo rules enforced:</strong> one ticket per passenger per trip; cannot exceed bus capacity.</p>
+        <p class="muted">Choose a role on the top-right to as Passenger, Driver, or Admin workflows. </p>
+        <p class="notice"><strong>Rules:</strong> Observe that the rule is one ticket per passenger per trip; thanks.</p>
         <div class="kpi" id="kpis"></div>
       </div>
 
